@@ -1,8 +1,9 @@
 (ns aoc2018-2 (:require clojure.string
                         clojure.data
-                        [clojure.math.combinatorics :as combinatorics]))
+                        [clojure.math.combinatorics :as combinatorics]
+                        [clojure.java.io :as io]))
 
-(def input "./resources/aoc2018_2.txt")
+(def input (io/resource "aoc2018_2.txt"))
 
 (def ids (-> input
              slurp
@@ -34,6 +35,9 @@
   (let [{count-2 2 count-3 3} (frequencies-through (map frequency-numbers ids))]
     (* count-2 count-3)))
 
+(comment
+  (frequency-numbers "ymdrcyapvwfloiuktanxzjsieb"))
+
 ;; 파트 2
 ;; 여러개의 문자열 중, 같은 위치에 정확히 하나의 문자가 다른 문자열 쌍에서 같은 부분만을 리턴하시오.
 ;; 예)
@@ -47,7 +51,8 @@
 
 ;; 주어진 예시에서 fguij와 fghij는 같은 위치 (2번째 인덱스)에 정확히 한 문자 (u와 h)가 다름. 따라서 같은 부분인 fgij를 리턴하면 됨.
 
-(defn single? [coll]
+(defn single?
+  [coll]
   (= (count (filter some? coll)) 1))
 
 (defn common-chars [s1 s2]
@@ -58,7 +63,11 @@
 (def part2
   (let [coll ids
         pairs (combinatorics/combinations coll 2)]
-    (filter some? (map (fn [[first second]](common-chars first second)) pairs))))
+    (keep (fn [[first second]] (common-chars first second)) pairs)))
+
+(comment
+  ids
+  (combinatorics/combinations ids 2))
 
 ;; #################################
 ;; ###        Refactoring        ###

@@ -1,14 +1,11 @@
-(ns aoc2018-1 (:require clojure.string))
+(ns aoc2018-1 (:require clojure.string [clojure.java.io :as io]))
 
-(def input "./resources/aoc2018_1.txt")
+(def input (clojure.string/split-lines (slurp (io/resource "aoc2018_1.txt"))))
 
 ;; 파트 1
 ;; 주어진 입력의 모든 숫자를 더하시오.
 ;; 예) +10 -2 -5 +1 이 입력일 경우 4를 출력
-(def numbers (-> input
-                 slurp
-                 clojure.string/split-lines
-                 ((fn [n] (map #(Integer. %) n)))))
+(def numbers (map #(Integer. %) input))
 
 (def part1 (reduce + numbers))
 
@@ -19,9 +16,9 @@
 
 (def part2
   (->> (reductions + (cycle numbers))
-       (reduce (fn [sum n] (if (contains? sum n)
-                              (reduced n)
-                              (conj sum n))) #{0})))
+       (reduce (fn [acc v] (if (contains? acc v)
+                             (reduced v)
+                             (conj acc v))) #{0})))
 
 ;; #################################
 ;; ###        Refactoring        ###
