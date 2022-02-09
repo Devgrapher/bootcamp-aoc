@@ -39,19 +39,13 @@
 (defn gen-rect
   ([{:keys [x y w h]}] (gen-rect [x y] [w h]))
   ([[x y] [w h]]
-   (into #{}
-         (for [i (range w)
-               j (range h)]
-           [(+ x i) (+ y j)]))))
+   (for [i (range w)
+         j (range h)]
+     [(+ x i) (+ y j)])))
 
 (def claimed-rects (map gen-rect claims))
 
-(defn frequencies-through [coll]
-  (->> coll
-       (map frequencies)
-       (apply merge-with +)))
-
-(def point-frequencies (frequencies-through claimed-rects))
+(def point-frequencies (frequencies (apply concat claimed-rects)))
 
 (def part1
   (count
@@ -60,15 +54,7 @@
 
 (comment
   (parse-claim "#144 @ 208,134: 3x10")
-  (gen-rect '(:x 208 :y 134 :w 3 :h 10))
-
-  (clojure.set/union (gen-rect [1 3] [4 4])
-                     (gen-rect [3 1] [4 4])
-                     (gen-rect [5 5] [2 2]))
-  (count
-   (filter #(> (val %) 1) (frequencies-through [(gen-rect [1 3] [4 4])
-                                                (gen-rect [3 1] [4 4])
-                                                (gen-rect [5 5] [2 2])]))))
+  (gen-rect '(:x 208 :y 134 :w 3 :h 10)))
 
 ;; 파트 2
 ;; 입력대로 모든 격자를 채우고 나면, 정확히 한 ID에 해당하는 영역이 다른 어떤 영역과도 겹치지 않음
@@ -76,24 +62,25 @@
 ;; 겹치지 않는 영역을 가진 ID를 출력하시오. (문제에서 답이 하나만 나옴을 보장함)
 
 (def rects-by-id
-  (into {} (map vector (map :id claims) (map gen-rect claims))))
+  (zipmap (map :id claims) (map gen-rect claims)))
 
-(defn find-frequencies [rect]
+(defn find-frequencies
+  "rect의 각 좌표별 frequency들을 리스트로 반환합니다."
+  [rect]
   (map point-frequencies rect))
 
-(defn every-one? [coll]
+(defn every-one?
+  "`coll`의 모든 요소가 1인지 검사합니다."
+  [coll]
   (every? #(= 1 %) coll))
 
-(def part2 (reduce (fn [_ v]
-                     (let [id (key v)
-                           points (val v)
-                           freq (find-frequencies points)]
-                       (when (every-one? freq)
-                         (reduced id))))
-                   rects-by-id))
+(def part2
+  (let [uniq-rects (remove #(let [rect (val %)
+                                  freq (find-frequencies rect)]
+                              ((complement every-one?) freq))
+                           rects-by-id)]
+    (-> uniq-rects first key)))
 
 (comment
   (find-frequencies (gen-rect '(:x 208 :y 134 :w 3 :h 10)))
-  (find-frequencies (gen-rect [1 3] [4 4]))
-
-  )
+  (find-frequencies (gen-rect [1 3] [4 4])))
