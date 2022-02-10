@@ -1,4 +1,34 @@
-(ns aoc2018_4)
+(ns aoc2018-4
+  (:require [clojure.string :as str]
+            [clojure.java.io :as io]))
+
+(def input (-> (io/resource "aoc2018_4.txt")
+               slurp
+               str/split-lines
+               sort))
+
+(def line-re #"^\[\d+-(\d+)-(\d+) (\d+):(\d+)\] ([\w]+) ?\#?(\d+)?.+")
+
+(defn to-int [s]
+  (when (not (nil? s)) (Integer. s)))
+
+(def events
+  (map
+   #(let [[_ & args] (re-matches line-re %)
+          [m d hour min action guard] args]
+      {:m (to-int m)
+       :d (to-int d)
+       :hour (to-int hour)
+       :min (to-int min)
+       :action (keyword (str/lower-case action))
+       :guard (to-int guard)})
+   input))
+
+(comment
+  (re-matches line-re "[1518-05-26 23:59] Guard #71 begins shift")
+  (re-matches line-re "[1518-10-24 00:52] falls asleep")
+  events)
+
 ;; 파트 1
 ;; 입력:
 
@@ -28,6 +58,59 @@
 ;; 파트 1은 “주어진 입력에 대해서, 가장 오랜시간 잠들어있었던 가드의 ID와, 그 가드가 가장 빈번하게 잠들어 있었던 분(minute)의 곱을 구하라”
 ;; 만약 20번 가드가 0시 10분~36분, 2시 5분~11분, 3시 11분~13분 이렇게 잠들어 있었다면, “11분“이 가장 빈번하게 잠들어 있던 ‘분’. 그럼 답은 20 * 11 = 220.
 
+(def sleeps-by-guard
+  "이벤트들을 파싱해서 가드별 수면 시간들을 모읍니다."
+  (let [guard-sleeps (reduce (fn [{:keys [cur-guard] :as acc}
+                                  {:keys [action guard min]}]
+                               (case action
+                                 :guard (assoc acc :cur-guard guard)
+                                 :falls (assoc acc :falls min)
+                                 :wakes (update acc cur-guard #(conj % [(:falls acc) min]))))
+                             {}
+                             events)]
+    (dissoc guard-sleeps :cur-guard :falls)))
+
+(defn sleepiest-minute
+  "수면 시작 종료 쌍에서에 가장 빈번히 잠든 분(minute)과 그 시간의 쌍을 구합니다"
+  [sleep-time-pairs]
+  (let [minutes (map #(range (first %) (second %)) sleep-time-pairs)
+        minute-frequencies (-> minutes
+                               flatten
+                               frequencies)
+        most-frequent (->> minute-frequencies
+                           (sort-by val >)
+                           first)]
+    most-frequent))
+
+(defn sleep-sum
+  "자고 일어난 시간 쌍의 목록에서 수면시간의 합을 구합니다."
+  [pairs]
+  (reduce (fn [acc [fall wake]]
+            (+ acc (- wake fall))) 0 pairs))
+
+(def part1
+  (let [sleep-sums (for [[guard sleeps] sleeps-by-guard]
+                     {:guard guard :sum (sleep-sum sleeps)})
+        sleepiest-guard (-> (sort-by :sum > sleep-sums)
+                            first
+                            :guard)
+        minute (first (sleepiest-minute (sleeps-by-guard sleepiest-guard)))]
+    (* sleepiest-guard minute)))
+
+
+(comment
+  (sleepiest-minute '([24 29] [30 55] [5 25]))
+  (sleep-sum '([24 29] [30 55] [5 25])))
 
 ;; 파트 2
 ;; 주어진 분(minute)에 가장 많이 잠들어 있던 가드의 ID과 그 분(minute)을 곱한 값을 구하라.
+
+(def part2
+  (let [sleepiest-by-guard (for [[guard sleeps] sleeps-by-guard]
+                             {:guard guard :sleepiest (sleepiest-minute sleeps)})
+        {:keys [guard sleepiest]} (first (sort-by #(-> % :sleepiest second) > sleepiest-by-guard))]
+    (* guard (first sleepiest))))
+
+(comment
+  (for [[guard sleeps] sleeps-by-guard]
+    {:guard guard :sleepiest (sleepiest-minute sleeps)}))
