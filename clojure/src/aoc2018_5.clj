@@ -2,9 +2,9 @@
   (:require [clojure.string :as str]
             [clojure.java.io :as io]))
 
-(def input "dabAcCaCBAcCcaDA")
-#_(def input (-> (io/resource "aoc2018_5.txt")
-                 slurp))
+#_(def input "dabAcCaCBAcCcaDA")
+(def input (-> (io/resource "aoc2018_5.txt")
+               slurp))
 
 ;; 파트 1
 ;; 입력: dabAcCaCBAcCcaDA
@@ -27,15 +27,13 @@
   "입력된 유닛을 모두 반응시켜서 남은 유닛만 반환합니다."
   [units]
   (->> (loop [acc [:none]
-              left (first units)
-              right (second units)
-              remain (drop 2 units)]
-         (println [acc left right remain])
+              [left right & remain] units]
+         #_(println [acc left right remain])
          (if (empty? remain)
            (if (units-react? left right) acc (conj acc left right))
            (if (units-react? left right)
-             (recur (into [] (butlast acc)) (last acc) (first remain) (rest remain))
-             (recur (conj acc left) right (first remain) (rest remain)))))
+             (recur (pop acc) (cons (last acc) remain))
+             (recur (conj acc left) (cons right remain)))))
        (remove #(= :none %))))
 
 (defn part1 [] (-> input
