@@ -26,13 +26,13 @@
 (defn make-react
   "입력된 유닛을 모두 반응시켜서 남은 유닛만 반환합니다."
   [units]
-  (->> (loop [acc [:none]
+  (->> (loop [acc (list :none)
               [left right & remain] units]
          #_(println [acc left right remain])
          (if (nil? right)
            (conj acc left)
            (if (units-react? left right)
-             (recur (pop acc) (cons (last acc) remain))
+             (recur (rest acc) (cons (first acc) remain))
              (recur (conj acc left) (cons right remain)))))
        (remove #(= :none %))))
 
@@ -51,13 +51,11 @@
 (def filtering-units (map #(set [%1 %2]) (char-range \a \z) (char-range \A \Z)))
 
 (defn part2 []
-  (let [filtered-inputs (map #(remove % input) filtering-units)
-        results (map make-react filtered-inputs)
-        counts (map count results)]
-    (->> (zipmap results counts)
-         (sort-by val)
-         first
-         val)))
+  (->> filtering-units
+       (map #(remove % input))
+       (map make-react)
+       (map count)
+       (apply min)))
 
 (comment
   ;; part2
@@ -65,3 +63,8 @@
   (char-range \A \Z)
 
   filtering-units)
+
+; 오늘의 교훈
+; 자료구조에 적합한 함수를 사용하자.
+; vector에는 butlast보다 pop이 낫다.
+; 애초에 LISP기반언어에선 vector보다 list기반의 자료구조를 잘 활용하는게 더 좋다.
