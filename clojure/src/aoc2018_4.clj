@@ -9,25 +9,21 @@
 
 (def line-re #"^\[\d+-(\d+)-(\d+) (\d+):(\d+)\] ([\w]+) ?\#?(\d+)?.+")
 
-(defn to-int [s]
-  (when (not (nil? s)) (Integer. s)))
+(defn ->int [s]
+  (when s (Integer. s)))
 
 (defn parse-events [lines]
   (map
    #(let [[_ & args] (re-matches line-re %)
           [m d hour min action guard] args]
-      {:m (to-int m)
-       :d (to-int d)
-       :hour (to-int hour)
-       :min (to-int min)
+      {:m (->int m)
+       :d (->int d)
+       :hour (->int hour)
+       :min (->int min)
        :action (keyword (str/lower-case action))
-       :guard (to-int guard)})
+       :guard (->int guard)})
    lines))
 
-(comment
-  (re-matches line-re "[1518-05-26 23:59] Guard #71 begins shift")
-  (re-matches line-re "[1518-10-24 00:52] falls asleep")
-  (parse-events input))
 
 ;; 파트 1
 ;; 입력:
@@ -72,7 +68,7 @@
     (dissoc guard-sleeps :cur-guard :falls)))
 
 (defn sleepiest-minute
-  "수면 시작 종료 쌍에서에 가장 빈번히 잠든 분(minute)과 그 시간의 쌍을 구합니다"
+  "수면 시작 종료 쌍에서에 가장 빈번히 잠든 분(minute)과 그 시간의 쌍을 구합니다."
   [sleep-time-pairs]
   (let [minutes (map #(range (first %) (second %)) sleep-time-pairs)
         minute-frequencies (-> minutes
@@ -88,43 +84,45 @@
   (->> pairs
        (map (fn [[fall wake]] (- wake fall)))
        (apply +)))
-  ;(reduce (fn [acc [fall wake]]
-  ;          (+ acc (- wake fall))) 0 pairs))
 
-(def part1
+(defn part1 []
   (let [events (parse-events input)
         sleeps-by-guard (group-by-guard events)
-        sleep-sums (for [[guard sleeps] sleeps-by-guard]
-                     {:guard guard :sum (sleep-sum sleeps)})
-        sleepiest-guard (-> (sort-by :sum > sleep-sums)
-                            first
-                            :guard)
-        minute (first (sleepiest-minute (sleeps-by-guard sleepiest-guard)))]
-    (* sleepiest-guard minute)))
-
-
-(comment
-  (sleepiest-minute '([24 29] [30 55] [5 25]))
-  (sleep-sum '([24 29] [30 55] [5 25]))
-
-  (for [[guard sleeps] (group-by-guard (parse-events input))]
-    {:guard guard :sum (sleep-sum sleeps)}))
+        sleepiest-guard-id (->> sleeps-by-guard
+                             (map (fn [[guard sleeps]]
+                                    {:guard guard :sum (sleep-sum sleeps)}))
+                             (sort-by :sum >)
+                             first
+                             :guard)
+        minute (first (sleepiest-minute (sleeps-by-guard sleepiest-guard-id)))]
+    (* sleepiest-guard-id minute)))
 
 ;; 파트 2
 ;; 주어진 분(minute)에 가장 많이 잠들어 있던 가드의 ID과 그 분(minute)을 곱한 값을 구하라.
 
-(def part2
+(defn part2 []
   (let [events (parse-events input)
         sleeps-by-guard (group-by-guard events)
-        sleepiest-by-guard (for [[guard sleeps] sleeps-by-guard]
-                             {:guard guard :sleepiest (sleepiest-minute sleeps)})
-        {:keys [guard sleepiest]} (first (sort-by
-                                          #(-> % :sleepiest second)
-                                          >
-                                          sleepiest-by-guard))
+        {:keys [guard sleepiest]} (->> sleeps-by-guard
+                                       (map (fn [[guard sleeps]]
+                                              {:guard guard :sleepiest (sleepiest-minute sleeps)}))
+                                       (sort-by #(-> % :sleepiest second) >)
+                                       first)
         minute (first sleepiest)]
     (* guard minute)))
 
 (comment
+  (re-matches line-re "[1518-05-26 23:59] Guard #71 begins shift")
+  (re-matches line-re "[1518-10-24 00:52] falls asleep")
+  (parse-events input)
+  ;; part1
+  (sleepiest-minute '([24 29] [30 55] [5 25]))
+  (sleep-sum '([24 29] [30 55] [5 25]))
+
   (for [[guard sleeps] (group-by-guard (parse-events input))]
-    {:guard guard :sleepiest (sleepiest-minute sleeps)}))
+    {:guard guard :sum (sleep-sum sleeps)})
+
+  ;; part2
+  (for [[guard sleeps] (group-by-guard (parse-events input))]
+    {:guard guard :sleepiest (sleepiest-minute sleeps)})
+  )
