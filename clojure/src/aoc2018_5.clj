@@ -29,8 +29,8 @@
   (->> (loop [acc [:none]
               [left right & remain] units]
          #_(println [acc left right remain])
-         (if (empty? remain)
-           (if (units-react? left right) acc (conj acc left right))
+         (if (nil? right)
+           (conj acc left)
            (if (units-react? left right)
              (recur (pop acc) (cons (last acc) remain))
              (recur (conj acc left) (cons right remain)))))
