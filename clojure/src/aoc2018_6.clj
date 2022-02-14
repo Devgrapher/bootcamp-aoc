@@ -8,9 +8,9 @@
 
 (defn apply-xs-and-ys
   "coords에서 x좌표들과 y좌표들에 fn을 적용한 결과를 pair로 리턴합니다."
-  [fn coords]
+  [f coords]
   (let [[xs ys] (apply map list coords)]
-    (list (apply fn xs) (apply fn ys))))
+    [(apply f xs) (apply f ys)]))
 
 (def min-coord (partial apply-xs-and-ys min))
 (def max-coord (partial apply-xs-and-ys max))
@@ -79,17 +79,17 @@
   "좌표별 거리가 담긴 맵 리스트에서 가장 짧은 거리만 남깁니다."
   [coords-with-dist]
   (let [sorted (sort-by :dist coords-with-dist)]
-    (when (not= (-> sorted first :dist) (-> sorted second :dist))
+    (when-not (= (-> sorted first :dist) (-> sorted second :dist))
       (first sorted))))
 
 (defn gen-distances-on-grid
   "그리드상 모든 좌표에서 주어진 좌표까지의 거리들을 계산합니다."
   [{:keys [min-x min-y max-x max-y coords] :as input}]
   (update input :coords
-          (fn [_] (for [x (range min-x (inc max-x))
+          (constantly (for [x (range min-x (inc max-x))
                         y (range min-y (inc max-y))
                         :let [distances (map #(hash-map :coord % :dist (distance [x y] %)) coords)]]
-                    (list [x y] distances)))))
+                    [[x y] distances]))))
 
 (defn find-perimeters
   "주어진 그리드내에서 경계에 위치한 좌표 set을 구합니다."
@@ -100,19 +100,20 @@
          [x y])))
 
 (defn drop-coords-with-perimeters
-  "그리드내 경계좌표를 포함하는 좌표는 무한대이므로 제외합니다."
+  "coords에서 그리드내 경계좌표를 포함하는 좌표를 제외합니다."
   [{:keys [min-x min-y max-x max-y coords]}]
   (let [perimeters (find-perimeters [min-x min-y] [max-x max-y])]
     (->> coords
-         (map (fn [[xy dists]] (list xy (min-dist-butsame dists))))
+         (map (fn [[xy dists]] [xy (min-dist-butsame dists)]))
          (group-by #(-> % second :coord))
-         (filter (fn [[_ xy_dists]] (not-any? #(perimeters (first %)) xy_dists))))))
+         (filter (fn [[_ xy-dists]]
+                   (not-any? #(perimeters (first %)) xy-dists))))))
 
 (defn max-area
   "그리드 내에 가장 많은 영역을 가진 좌표를 구합니다."
   [coords_with_dists]
   (->> coords_with_dists
-       (map (fn [[coord dists]] (list coord (count dists))))
+       (map (fn [[coord dists]] [coord (count dists)]))
        (apply max-key second)
        second))
 
@@ -152,7 +153,9 @@
 
 (defn sum-distances
   [distances]
-  (reduce #(+ (:dist %2) %1) 0 distances))
+  (->> distances
+      (map :dist)
+      (apply +)))
 
 (defn part2
   []
@@ -164,5 +167,6 @@
            (filter #(< % max-safe-distance))
            count)))
 
-(comment
-  (distance [1 1] [3 3]))
+
+;; 오늘의 교훈
+;; 인풋을 넓게 받고 좁게 리턴해라. 인풋을 맵을 통해 받으면 좀 더 제너럴한 함수다.
