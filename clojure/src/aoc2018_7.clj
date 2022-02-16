@@ -45,11 +45,11 @@
 
 (defn find-orders
   [deps]
-  (let [state (->> {:deps deps :done []}
-                   (iterate pop-indep-job)
-                   (take-while (fn [{:keys [deps]}] (seq deps)))
-                   last)]
-    (:done (pop-indep-job state))))
+  (->> {:deps deps :done []}
+       (iterate pop-indep-job)
+       (drop-while (fn [{:keys [deps]}] (seq deps)))
+       first
+       :done))
 
 (defn part1
   []
@@ -116,15 +116,15 @@
 (defn measure-time
   "모든 작업을 마칠때까지 do-work를 실행하고 소요시간을 반환합니다."
   [deps]
-  (let [state (->> {:deps deps
-                    :work-progressing {}
-                    :time-elapsed 0}
-                   (iterate take-job-and-progress)
-                   (take-while
-                    (fn [{:keys [deps work-progressing]}]
-                      (or (seq deps) (seq work-progressing))))
-                   last)]
-    (:time-elapsed (take-job-and-progress state))))
+  (->> {:deps deps
+        :work-progressing {}
+        :time-elapsed 0}
+       (iterate take-job-and-progress)
+       (drop-while
+        (fn [{:keys [deps work-progressing]}]
+          (or (seq deps) (seq work-progressing))))
+       first
+       :time-elapsed))
 
 (defn part2
   []
