@@ -19,15 +19,14 @@
         lefts (into #{} (map first pairs))
         rights (into #{} (map second pairs))
         entries (filter #(not (rights %)) lefts)]
-    (apply conj deps (map (fn [en] {en #{}}) entries)))
-  )
+    (apply conj deps (map (fn [en] {en #{}}) entries))))
 
 ;; part 1
 
 (defn find-entries
   "다른 작업에 의존성이 없는 시작 작업 목록을 반환합니다."
   [deps]
-  (keys (filter #(empty? (val % )) deps)))
+  (keys (filter #(empty? (val %)) deps)))
 
 (defn drop-dep
   "의존성 목록에서 작업을 제거합니다."
@@ -37,19 +36,20 @@
                   (into {}))]
     (dissoc deps job)))
 
+(defn pop-indep-job
+  "의존성이 없는 항목을 제거합니다"
+  [{:keys [deps done]}]
+  (let [entry (first (sort (find-entries deps)))]
+    {:deps (drop-dep deps entry)
+     :done (conj done entry)}))
+
 (defn find-orders
-  "{C #{F A}, A #{B D}, ...} -> [C A ...]"
   [deps]
-  (loop [{:keys [deps
-                 done]} {:deps deps
-                         :done []}]
-    (prn deps done)
-    (if (empty? deps)
-      done
-      (let [entry (first (sort (find-entries deps)))
-            rem (drop-dep deps entry)]
-        (recur {:deps rem
-                :done (conj done entry)})))))
+  (let [state (->> {:deps deps :done []}
+                   (iterate pop-indep-job)
+                   (take-while (fn [{:keys [deps]}] (seq deps)))
+                   last)]
+    (:done (pop-indep-job state))))
 
 (defn part1
   []
@@ -95,36 +95,47 @@
        (filter #(> (val (first %)) 0))
        (into {})))
 
-(defn do-work
-  "의존성순서에 따라 작업을 진행하고 총 시간을 반환합니다."
+(defn take-job-and-progress
+  "남은 작업중 가장 작은 시간만큼 시간을 진척시키고 작업 상태를 업데이트합니다."
+  [{:keys [deps
+           work-progressing
+           time-elapsed]}]
+  (let [time-dt (if (empty? work-progressing) 0 (apply min (map val work-progressing)))
+        time-elapsed (+ time-elapsed time-dt)
+        work-elapsed (elapse-work work-progressing time-dt)
+        done (remove (set (keys work-elapsed)) (keys work-progressing))
+        deps (reduce (fn [deps job] (drop-dep deps job))
+                     deps
+                     done)
+        new-works (-> (alloc-jobs deps (keys work-elapsed))
+                      assign-time)]
+    {:deps deps
+     :work-progressing (merge new-works work-elapsed)
+     :time-elapsed time-elapsed}))
+
+(defn measure-time
+  "모든 작업을 마칠때까지 do-work를 실행하고 소요시간을 반환합니다."
   [deps]
-  (loop [{:keys [deps
-                 work-progressing
-                 time-elaped]} {:deps deps
-                                :work-progressing {} ; {job time-remaining}
-                                :time-elaped 0}]
-    (prn deps work-progressing)
-    (let [time-dt (if (empty? work-progressing) 0 (apply min (map val work-progressing)))
-          time-elaped (+ time-elaped time-dt)
-          work-elapsed (elapse-work work-progressing time-dt)
-          done (remove (set (keys work-elapsed)) (keys work-progressing))
-          deps (reduce (fn [deps job] (drop-dep deps job))
-                       deps
-                       done)]
-      (prn time-dt time-elaped work-elapsed work-elapsed)
-      (if (and (empty? deps) (empty? work-elapsed))
-        time-elaped
-        (let [new-works (-> (alloc-jobs deps (keys work-elapsed))
-                            assign-time)]
-          (recur {:deps deps
-                  :work-progressing (merge new-works work-elapsed)
-                  :time-elaped time-elaped}))))))
+  (let [state (->> {:deps deps
+                    :work-progressing {}
+                    :time-elapsed 0}
+                   (iterate take-job-and-progress)
+                   (take-while
+                    (fn [{:keys [deps work-progressing]}]
+                      (or (seq deps) (seq work-progressing))))
+                   last)]
+    (:time-elapsed (take-job-and-progress state))))
 
 (defn part2
   []
   (-> (parse-input input)
-      (do-work)))
+      measure-time))
 
 (comment
   (job-time "Z")
-  (parse-input input))
+  (measure-time (parse-input input)))
+
+
+
+;; 오늘의 교훈
+;; iterate를 쓰면 loop-recur에서 실행과 종료 조건을 분리시킬 수 있다.
