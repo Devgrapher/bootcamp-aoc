@@ -87,55 +87,44 @@
        (map (fn [w] {w (job-time w)}))
        (into {})))
 
-(defn elapse-work
+(defn progress-work
   "진행중인 작업에 시간을 진척시키고 시간이 소진된 작업은 제거합니다."
-  [work-with-time time-spending]
-  (->> work-with-time
-       (map (fn [[w t]] {w (- t time-spending)}))
-       (filter #(> (val (first %)) 0))
-       (into {})))
-
-(defn take-job-and-progress
-  "남은 작업중 가장 작은 시간만큼 시간을 진척시키고 작업 상태를 업데이트합니다."
-  [{:keys [deps
-           work-progressing
-           time-elapsed]}]
+  [{:keys [time-elapsed work-progressing] :as state}]
   (let [time-dt (if (empty? work-progressing) 0 (apply min (map val work-progressing)))
-        time-elapsed (+ time-elapsed time-dt)
-        work-elapsed (elapse-work work-progressing time-dt)
-        done (remove (set (keys work-elapsed)) (keys work-progressing))
-        deps (reduce (fn [deps job] (drop-dep deps job))
-                     deps
-                     done)
-        new-works (-> (alloc-jobs deps (keys work-elapsed))
-                      assign-time)]
-    {:deps deps
-     :work-progressing (merge new-works work-elapsed)
-     :time-elapsed time-elapsed}))
+        {:keys [remaining done]} (->> work-progressing
+                                      (map (fn [[w t]] {w (- t time-dt)}))
+                                      (group-by #(if (> (val (first %)) 0) :remaining :done)))]
+    (merge state {:time-elapsed (+ time-elapsed time-dt)
+                  :remaining (into {} remaining)
+                  :done (into {} done)})))
 
-(defn measure-time
-  "모든 작업을 마칠때까지 do-work를 실행하고 소요시간을 반환합니다."
-  [deps]
-  (->> {:deps deps
+(defn update-deps
+  "완료작업을 deps에서 삭제하고 신규 작업을 할당합니다."
+  [{:keys [deps remaining done] :as state}]
+  (let [updated (reduce (fn [deps job] (drop-dep deps job))
+                        deps
+                        (keys done))
+        new-works (-> (alloc-jobs updated (keys remaining))
+                      assign-time)]
+    (merge state {:deps updated
+                  :work-progressing (merge new-works remaining)})))
+
+(defn part2
+  []
+  (->> {:deps (parse-input input)
         :work-progressing {}
         :time-elapsed 0}
-       (iterate take-job-and-progress)
+       (iterate (comp update-deps progress-work))
        (drop-while
         (fn [{:keys [deps work-progressing]}]
           (or (seq deps) (seq work-progressing))))
        first
        :time-elapsed))
 
-(defn part2
-  []
-  (-> (parse-input input)
-      measure-time))
-
 (comment
-  (job-time "Z")
-  (measure-time (parse-input input)))
-
+  (job-time "Z"))
 
 
 ;; 오늘의 교훈
 ;; iterate를 쓰면 loop-recur에서 실행과 종료 조건을 분리시킬 수 있다.
+;; iterate의 함수를 작게 쪼개서 연결하기.
