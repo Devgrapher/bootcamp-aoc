@@ -27,11 +27,11 @@
 
 ;;; part1
 
-(spec/def :passport/simple #(every? % #{:hcl :hgt :ecl :iyr :pid :byr :eyr}))
+(spec/def ::simple #(every? % #{:hcl :hgt :ecl :iyr :pid :byr :eyr}))
 
 (defn part1 []
   (->> (parse-input input)
-       (filter #(spec/valid? :passport/simple %))
+       (filter #(spec/valid? ::simple %))
        count))
 
 ;;; part2
