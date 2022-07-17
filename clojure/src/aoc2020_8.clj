@@ -7,10 +7,10 @@
 
 (defn parse-input [input]
   (->> input
-      s/split-lines
-      (map #(s/split % #"\s"))
-      (map (fn [[op n]] {:op (keyword op)
-                        :num (Integer. n)}))))
+       s/split-lines
+       (map #(s/split % #"\s"))
+       (map (fn [[op n]] {:op (keyword op)
+                          :num (Integer. n)}))))
 
 (defn execute [{:keys [instructions pc acc executions]}]
   (let [{:keys [op num]} (nth instructions pc)
@@ -68,6 +68,18 @@
                  (switch-op (nth instructions %)))
          non-acc-indexes)))
 
+;; solution 2
+;; 테스트셋을 만들때 index를 쓰는 대신 id를 담은 set으로 변환한다.
+(defn gen-test-combinations2 [instructions]
+  (let [instructions (->> (map-indexed vector instructions)
+                          (map (fn [[idx e]] (assoc e :id idx)))
+                          (apply sorted-set-by #(< (:id %1) (:id %2))))]
+    (->> instructions
+         (filter #(not= (:op %) :acc))
+         (map #(-> instructions
+                   (disj %)
+                   (conj (switch-op %)))))))
+
 (defn part2
   [input]
   (let [instructions (into [] (parse-input input))]
@@ -84,4 +96,11 @@
   (parse-input input-sample)
   (test-execution (parse-input input-sample))
   (gen-test-combinations (into [] (parse-input input)))
-  )
+
+  (->> (into [] (parse-input input))
+       (gen-test-combinations2)
+       (map #(into [] %))
+       (map test-execution)
+       (filter (fn [{:keys [instructions pc]}] (= pc (count instructions))))
+       first
+       :acc))
