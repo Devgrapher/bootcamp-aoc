@@ -1,6 +1,5 @@
 (ns aoc2018-2 (:require clojure.string
                         clojure.data
-                        [clojure.math.combinatorics :as combinatorics]
                         [clojure.java.io :as io]))
 
 (def input (io/resource "aoc2018_2.txt"))
@@ -24,16 +23,13 @@
   (-> coll
       frequencies
       vals
-      distinct))
-
-(defn frequencies-through [coll]
-  (->> coll
-       (map frequencies)
-       (apply merge-with +)))
+      set))
 
 (def part1
-  (let [{count-2 2 count-3 3} (frequencies-through (map frequency-numbers ids))]
-    (* count-2 count-3)))
+  (let [freq       (map frequency-numbers ids)
+        count-of-2 (count (filter #(% 2) freq))
+        count-of-3 (count (filter #(% 3) freq))]
+    (* count-of-2 count-of-3)))
 
 (comment
   (frequency-numbers "ymdrcyapvwfloiuktanxzjsieb"))
@@ -51,23 +47,22 @@
 
 ;; 주어진 예시에서 fguij와 fghij는 같은 위치 (2번째 인덱스)에 정확히 한 문자 (u와 h)가 다름. 따라서 같은 부분인 fgij를 리턴하면 됨.
 
-(defn single?
+(defn differ-by-1?
   [coll]
   (= (count (filter some? coll)) 1))
 
 (defn common-chars [s1 s2]
-  (let [[d1 _ common] (clojure.data/diff (seq s1) (seq s2))]
-    (when (single? d1)
-      (apply str common))))
+  (->> (map #(if (= %1 %2) %1 nil) s1 s2)
+       (keep identity)
+       (apply str)))
 
 (def part2
-  (let [coll ids
-        pairs (combinatorics/combinations coll 2)]
-    (keep (fn [[first second]] (common-chars first second)) pairs)))
-
-(comment
-  ids
-  (combinatorics/combinations ids 2))
+  (->> (for [id1 ids
+             id2 ids
+             :when (not= id1 id2)]
+         (common-chars id1 id2))
+       (filter #(= (inc (count %)) (count (first ids))))
+       first))
 
 ;; #################################
 ;; ###        Refactoring        ###
